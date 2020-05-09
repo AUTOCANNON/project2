@@ -1,2 +1,3 @@
-# project2
-project2 for cs50web
+# Project 2
+
+Web Programming with Python and JavaScript

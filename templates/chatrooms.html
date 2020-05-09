@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<head>
+    <title>Welcome to the worst chat application on the internet</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+</head>
+<body>
+<!-- Side navigation -->
+    <div class="sidenav">
+        <h1>Chatrooms</h1>
+        <form id="new-chatroom">
+            <input id="chatroomInputBox" autocomplete="off" autofocus placeholder="room name" type="text">
+            <br>
+            <input id="submit" type="submit" value="Create Room"> 
+        </form>
+        <div id="chatroomButtons">
+        </div>
+
+    </div>
+
+    <!-- Page content -->
+    <div class="main">
+        <h2>Welcome</h2>
+        <h2 id="username">{{ username }}</h2>
+        <h2>to the</h2>
+        
+        <h2 id="inchatroom">
+        </h2>
+        <h2>chatroom!</h2>
+        <br>
+        <dl id ="chatReadWindow">
+        </dl>
+        <br>
+        <div>    
+            <form id="chatbox">
+                <input id="chatboxTextWindow" autocomplete="off" autofocus type="text">
+                <input id="chatSubmit" type="submit" value="Submit Message">
+            </form>
+        </div>
+
+    </div>
+    <script>
+
+
+        var globalRoom= localStorage.getItem('groom');
+                    if(existing == null) localStorage.setItem('groom','General');
+        
+        document.querySelector('#inchatroom').innerHTML = globalRoom;
+
+
+        var username = document.getElementById('username').innerHTML;
+
+
+        function reset_read_window() {
+            while( chatReadWindow.firstChild ){
+                        chatReadWindow.removeChild( chatReadWindow.firstChild );
+                            }
+        };
+
+        function make_chat_room(roomName) {
+            var butt = document.createElement('button');
+            butt.value = roomName;
+            butt.className = 'achatroombutton';
+            butt.innerHTML = roomName;
+            butt.onclick = "dosomething(this.value)"
+            document.querySelector('#chatroomButtons').append(butt);
+
+            linebreak = document.createElement("br");
+            document.querySelector('#chatroomButtons').append(linebreak);
+  
+        };
+
+        // makes chatroom buttons from local storage
+
+        var existing = localStorage.getItem('chatroomnames');
+            if(existing == null) localStorage.setItem('chatroomnames',[]);
+
+        var chatroomnames = localStorage.getItem('chatroomnames').split(',');
+
+        for (var j = 0; j < chatroomnames.length; j++) {
+
+            make_chat_room(chatroomnames[j]);
+            console.log('made');
+            
+        };
+
+
+        
+
+        document.addEventListener('DOMContentLoaded', () => {
+
+            var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+
+
+            // By default, submit button is disabled
+            document.querySelector('#submit').disabled = true;
+
+            // Enable button only if there is text in the input field
+            document.querySelector('#chatroomInputBox').onkeyup = () => {
+                if (document.querySelector('#chatroomInputBox').value.length > 0)
+                        document.querySelector('#submit').disabled = false;
+                else document.querySelector('#submit').disabled = true;
+            }
+
+            // When new chatroom is made
+            document.querySelector('#new-chatroom').onsubmit = () => {
+
+ 
+                var newroom = document.querySelector('#chatroomInputBox').value;
+                console.log(newroom)
+                make_chat_room(newroom);
+
+                // Add chatroomname to storage log in chatroom list
+                var existing = localStorage.getItem('chatroomnames');
+                if(existing == null) existing = [];
+                existing = existing ? existing.split(',') : [];
+
+                existing.push(newroom);
+
+                localStorage.setItem('chatroomnames', existing.toString());
+
+                // Make chatroomname its own log if not already exists.
+                if (!localStorage.getItem(newroom))
+                    localStorage.setItem(newroom, JSON.stringify([]))
+
+                // // Automatically enter the room
+                // globalRoom = newroom;
+                // localStorage.setItem('groom', globalRoom);  
+
+
+                // // lets user know what chatroom they are in at top of page
+                // document.querySelector('#inchatroom').innerHTML = globalRoom;
+
+                // Clear input field and disable button again
+                document.querySelector('#chatroomInputBox').value = '';
+                document.querySelector('#submit').disabled = true;
+
+                // Stop form from submitting
+                return false;
+            };
+
+            
+
+            // When a new chat is entered, emit it
+            socket.on('connect', () => {
+
+                document.querySelector('#chatbox').onsubmit = () => {
+                    let today = new Date();
+                         let date = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
+                         let time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+                         let dateTime = date+' '+time;
+
+                        let chatText = dateTime +' '+username + ': ' +document.querySelector('#chatboxTextWindow').value;
+                        var passData = {};
+                        passData[globalRoom] = chatText;
+                        let joinInfo = {'joinInfo':'standardChat'}
+                        socket.emit('submit_chat', { 'data': passData}, globalRoom, joinInfo);
+
+                    // Clear input field
+                    document.querySelector('#chatboxTextWindow').value = '';
+
+                    // Stop form from submitting
+                    return false;
+                };
+                
+                
+                document.querySelectorAll('button').forEach(button => {
+
+                    button.onclick = function() {
+                        console.log('here')
+                        reset_read_window()
+                        globalRoom = this.value;
+                        localStorage.setItem('groom', globalRoom);
+                        document.querySelector('#inchatroom').innerHTML = globalRoom;
+                        console.log('globalroom evaulates to  ' + globalRoom);
+                    
+                        let today = new Date();
+                        let date = today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
+                        let time = today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+                        let dateTime = date+' '+time;
+                        
+
+                        let chatText = dateTime + ' ' + username + ' has entered the chat';
+                        
+                        // used to signal that chats from server will need to be loaded in user's window
+                        let joinInfo = {'joinInfo':[username,globalRoom]}
+                        
+                        var passData = {};
+                        passData[globalRoom] = chatText;
+                        socket.emit('submit_chat', { 'data': passData}, globalRoom, joinInfo );
+                        console.log(passData[globalRoom])
+
+                        // Clear input field
+                        document.querySelector('#chatboxTextWindow').value = '';
+
+                        // Stop form from submitting
+                        return false;
+
+                    };
+
+                });
+
+
+            // When a new chat is entered, add to the unordered list
+            socket.on('chat_entered', data => {
+
+                // For each chatroom in chatlogmaster, find one that matche globalchatroom , add latest message,
+                // add onto end of chatReadWindow
+                
+                var chats = data[globalRoom];
+                //console.log(data['liveRoom'])
+                if (data['liveRoom'] === globalRoom) {
+                for (i = chats.length-1; i < chats.length; i++) {
+                    // Create new item for the latest chat entered
+
+                    var dt = document.createElement('dt');
+                    dt.innerHTML = chats[i]
+
+
+                    // Add new chat to chat window
+                    document.querySelector('#chatReadWindow').append(dt);
+                    }
+                };
+
+                // If someone just joined a room, this is the code to populate their window with the latest messages.
+                let ji = data['joinInfo'];
+                let myArray = Object.values(ji);
+                let myArray2 = myArray[0]
+                
+                let usernameOfBroadcaster = myArray2[0];
+                let chatroomOfBroadcaster = myArray2[1];
+                
+                if (ji.joinInfo != 'standardChat') {
+                    if(username == usernameOfBroadcaster && chatroomOfBroadcaster == globalRoom){
+                        //populate all chats
+                        for (i = 0; i < chats.length; i++) {
+                            console.log('i am here');
+                        // Create new item for the latest chat entered
+
+                        var dt = document.createElement('dt');
+                        dt.innerHTML = chats[i]
+
+                        // Add new chat to chat window
+                        document.querySelector('#chatReadWindow').append(dt);
+                        }
+
+                    } else {
+                        console.log('do nothing');
+                    }
+
+                }
+
+
+
+            });
+
+        });
+
+    });
+
+    </script>
+
+</body>
+
+        
